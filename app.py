@@ -2,13 +2,13 @@ import streamlit as st
 import pandas as pd
 import os
 
-# 1. Configuração da Página
-st.set_page_config(page_title="Calculadora Salarial MINC/IPHAN", page_icon="🔍", layout="wide")
+# Configuração da página
+st.set_page_config(page_title="Calculadora Salarial MINC/IPHAN", layout="wide")
 
-# --- FUNÇÕES DE SUPORTE ---
+# --- FUNÇÕES DE AUXÍLIO E FORMATAÇÃO ---
 
 def limpar_valor(valor):
-    """Trata strings monetárias e converte para float."""
+    """Converte valores do CSV para float."""
     if isinstance(valor, str):
         v = valor.replace('R$', '').replace('.', '').replace(',', '.').strip()
         try:
@@ -18,10 +18,10 @@ def limpar_valor(valor):
     return float(valor) if valor is not None else 0.0
 
 def formatar_br(valor):
-    """Formata para o padrão brasileiro: 1.234,56"""
+    """Formata float para o padrão brasileiro: 7.157,49"""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# --- CÁLCULO DE IRPF (LEI 15.270/2025) ---
+# --- FUNÇÕES DE CÁLCULO DE IRPF (LEI 15.270/2025) ---
 
 def aplicar_reducao_art3a(rendimento, imposto_bruto):
     if rendimento <= 5000.00:
@@ -32,127 +32,147 @@ def aplicar_reducao_art3a(rendimento, imposto_bruto):
     return 0.0
 
 def calcular_irpf_bruto(base_mensal):
-    if base_mensal <= 2259.20: return 0.0, 0.0, 0.0
-    elif base_mensal <= 2828.65: return (base_mensal * 0.075) - 169.44, 7.5, 169.44
-    elif base_mensal <= 3751.05: return (base_mensal * 0.15) - 381.44, 15.0, 381.44
-    elif base_mensal <= 4664.68: return (base_mensal * 0.225) - 662.77, 22.5, 662.77
-    else: return (base_mensal * 0.275) - 896.00, 27.5, 896.00
+    if base_mensal <= 2259.20:
+        return 0.0, 0.0, 0.0
+    elif base_mensal <= 2828.65:
+        return (base_mensal * 0.075) - 169.44, 7.5, 169.44
+    elif base_mensal <= 3751.05:
+        return (base_mensal * 0.15) - 381.44, 15.0, 381.44
+    elif base_mensal <= 4664.68:
+        return (base_mensal * 0.225) - 662.77, 22.5, 662.77
+    else:
+        return (base_mensal * 0.275) - 896.00, 27.5, 896.00
 
-# --- CARREGAMENTO DOS DADOS ---
+# --- CARREGAMENTO DE DADOS (APENAS VERSÃO PL) ---
 
 @st.cache_data
 def carregar_dados_pl():
-    arquivos = {
+    # Mapeamento apenas para os arquivos da Versão Alternativa (PL)
+    arquivos_pl = {
         "SUPERIOR": "tabela_superior(1).csv",
         "INTERMEDIÁRIO": "tabela_intermediario(1).csv",
         "AUXILIAR": "tabela_auxiliar(1).csv"
     }
     
-    colunas_padrao = ['classe', 'padrao', 'vb', 'gdac_unit', 'gdac_80', 'gdac_100', 'alim', 'ativo_80', 'ativo_100', 'gdac_50', 'apo_50']
-    dfs_finais = []
+    dfs = []
+    cols_numericas = ['vb', 'gdac', 'gdac_80', 'gdac_100', 'auxilio_alimentacao', 'ativo_80', 'ativo_100']
     
-    for nivel, path in arquivos.items():
+    for nivel, path in arquivos_pl.items():
         if os.path.exists(path):
-            try:
-                # Seus arquivos usam vírgula (,) e possuem uma linha de título no topo
-                df_raw = pd.read_csv(path, sep=',', encoding='utf-8-sig', skiprows=1)
-                
-                # Se ler errado (apenas 1 coluna), tenta ponto e vírgula
-                if df_raw.shape[1] < 10:
-                    df_raw = pd.read_csv(path, sep=';', encoding='utf-8-sig', skiprows=1)
+            temp_df = pd.read_csv(path, sep=';', encoding='utf-8-sig')
+            for col in cols_numericas:
+                if col in temp_df.columns:
+                    temp_df[col] = temp_df[col].apply(limpar_valor)
+            
+            temp_df['nivel_data'] = nivel
+            dfs.append(temp_df)
+    
+    return pd.concat(dfs, ignore_index=True) if dfs else None
 
-                # Parte 2025 (Colunas 0 a 10)
-                df_25 = df_raw.iloc[:, 0:11].copy()
-                df_25.columns = colunas_padrao
-                df_25['vigencia'] = "2025"
-                df_25['nivel_data'] = nivel
-                
-                # Parte 2026 (Colunas 12 a 22)
-                df_26 = df_raw.iloc[:, 12:23].copy()
-                df_26.columns = colunas_padrao
-                df_26['vigencia'] = "2026"
-                df_26['nivel_data'] = nivel
-                
-                for df in [df_25, df_26]:
-                    for col in ['vb', 'gdac_80', 'gdac_100', 'alim']:
-                        df[col] = df[col].apply(limpar_valor)
-                    dfs_finais.append(df)
-            except Exception as e:
-                print(f"Erro no arquivo {path}: {e}")
-                
-    return pd.concat(dfs_finais, ignore_index=True) if dfs_finais else None
-
-# Inicialização global da variável para evitar NameError
 df_pl = carregar_dados_pl()
 
 # --- INTERFACE ---
 
-
-
-st.title("🔍 Calculadora Salarial MINC/IPHAN")
-st.subheader("Simulador de valores com base PL nº 5.874/2025")
+st.title("⚖️ Calculadora Salarial MINC/IPHAN")
+st.subheader("Simulador: PL nº 5.874/2025 & Lei nº 15.270/2025")
 
 if df_pl is None:
-    st.error("Arquivos CSV não encontrados ou erro na leitura. Verifique se os nomes dos arquivos no GitHub estão corretos.")
+    st.error("Erro: Arquivos da Versão PL não encontrados (ex: tabela_superior(1).csv).")
     st.stop()
 
 # Sidebar
-st.sidebar.header("Configuração")
+st.sidebar.header("Configurações do Servidor")
+st.sidebar.info("Utilizando: Versão do PL nº 5.874/2025")
+
 nivel_sel = st.sidebar.selectbox("Nível", ["SUPERIOR", "INTERMEDIÁRIO", "AUXILIAR"])
-ano_base = st.sidebar.radio("Ano de Referência", ["2025", "2026"])
+ano_base = st.sidebar.radio("Ano Base para Cálculo", [2025, 2026])
 
-# Filtro
 df_filtrado = df_pl[df_pl['nivel_data'] == nivel_sel]
-classes = sorted(df_filtrado['classe'].unique(), reverse=True)
-classe_sel = st.sidebar.selectbox("Classe", classes)
 
-padroes = sorted(df_filtrado[df_filtrado['classe'] == classe_sel]['padrao'].unique())
-padrao_sel = st.sidebar.selectbox("Padrão", padroes)
+classe_sel = st.sidebar.selectbox("Classe", sorted(df_filtrado['classe'].unique(), reverse=True))
+padrao_sel = st.sidebar.selectbox("Padrão", sorted(df_filtrado[df_filtrado['classe'] == classe_sel]['padrao'].unique()))
+pontos_gdac = st.sidebar.select_slider("Pontos GDAC", options=[80, 100], value=80)
 
-pontos_gdac = st.sidebar.select_slider("Pontos GDAC", options=[80, 100], value=100)
+tem_pre_escolar = st.sidebar.checkbox("Auxílio Pré-Escolar (+ R$ 321,00)")
+valor_funcao = st.sidebar.number_input("Função Comissionada (R$)", min_value=0.0, step=50.0)
 
-valor_funcao = st.sidebar.number_input("Função Comissionada (R$)", min_value=0.0, step=100.0)
-tem_pre = st.sidebar.checkbox("Auxílio Pré-Escolar (+ R$ 321,00)")
+# --- PROCESSAMENTO ---
 
-# --- CÁLCULO ---
+def calcular_totais(row, ano):
+    vb = float(row['vb'])
+    gdac = float(row['gdac_80'] if pontos_gdac == 80 else row['gdac_100'])
+    alim = float(row['auxilio_alimentacao'])
+    pre = 321.00 if tem_pre_escolar else 0.0
+    
+    rendimento_mensal = vb + gdac + alim + valor_funcao + pre
+    
+    imp_bruto, aliq, deducao = calcular_irpf_bruto(rendimento_mensal)
+    reducao = aplicar_reducao_art3a(rendimento_mensal, imp_bruto) if ano == 2026 else 0.0
+    
+    irpf_final = max(0.0, imp_bruto - reducao)
+    return {
+        "VB": vb, "GDAC": gdac, "Alim": alim, "Pre": pre, "Funcao": valor_funcao,
+        "Mensal_Bruto": rendimento_mensal, "IR_Final": irpf_final, 
+        "Reducao": reducao, "Mensal_Liquido": rendimento_mensal - irpf_final, "Aliq": aliq
+    }
 
 try:
-    dados = df_filtrado[(df_filtrado['classe'] == classe_sel) & 
-                        (df_filtrado['padrao'] == padrao_sel) & 
-                        (df_filtrado['vigencia'] == ano_base)].iloc[0]
+    # Filtro para as duas vigências dentro do PL
+    row_25 = df_filtrado[(df_filtrado['classe'] == classe_sel) & (df_filtrado['padrao'] == padrao_sel) & (df_filtrado['vigencia'] == "01/01/2025")].iloc[0]
+    row_26 = df_filtrado[(df_filtrado['classe'] == classe_sel) & (df_filtrado['padrao'] == padrao_sel) & (df_filtrado['vigencia'] == "01/04/2026")].iloc[0]
     
-    vb = dados['vb']
-    gdac = dados['gdac_80'] if pontos_gdac == 80 else dados['gdac_100']
-    alim = dados['alim']
-    pre = 321.0 if tem_pre else 0.0
-    
-    bruto = vb + gdac + alim + valor_funcao + pre
-    imp_bruto, aliq, _ = calcular_irpf_bruto(bruto)
-    reducao = aplicar_reducao_art3a(bruto, imp_bruto) if ano_base == "2026" else 0.0
-    ir_final = max(0.0, imp_bruto - reducao)
-    liquido = bruto - ir_final
+    res_25 = calcular_totais(row_25, 2025)
+    res_26 = calcular_totais(row_26, 2026)
+    res_atual = res_25 if ano_base == 2025 else res_26
+except IndexError:
+    st.error("Dados não encontrados para esta Classe/Padrão no arquivo do PL.")
+    st.stop()
 
-    # Resultados
+# --- EXIBIÇÃO ---
+
+tab1, tab2 = st.tabs(["📊 Calculadora Mensal", "🔄 Comparativo Jan/25 vs Abr/26"])
+
+with tab1:
     m1, m2, m3 = st.columns(3)
-    m1.metric("Bruto Mensal", f"R$ {formatar_br(bruto)}")
-    m2.metric("IRPF Retido", f"R$ {formatar_br(ir_final)}", 
-              delta=f"-R$ {formatar_br(reducao)}" if reducao > 0 else None, delta_color="inverse")
-    m3.metric("Líquido Estimado", f"R$ {formatar_br(liquido)}")
+    m1.metric("Valor Mensal Bruto", f"R$ {formatar_br(res_atual['Mensal_Bruto'])}")
+    m2.metric("IRPF Mensal Final", f"R$ {formatar_br(res_atual['IR_Final'])}", 
+              delta=f"-R$ {formatar_br(res_atual['Reducao'])}" if ano_base == 2026 and res_atual['Reducao'] > 0 else None, delta_color="inverse")
+    m3.metric("Valor Mensal Líquido", f"R$ {formatar_br(res_atual['Mensal_Liquido'])}")
 
     st.markdown("---")
     c1, c2 = st.columns(2)
     with c1:
-        st.write(f"**Vencimento Básico:** R$ {formatar_br(vb)}")
-        st.write(f"**GDAC ({pontos_gdac} pts):** R$ {formatar_br(gdac)}")
-        st.write(f"**Auxílio Alimentação:** R$ {formatar_br(alim)}")
+        st.info("**Composição do Rendimento**")
+        st.write(f"Vencimento Básico: R$ {formatar_br(res_atual['VB'])}")
+        st.write(f"GDAC ({pontos_gdac} pts): R$ {formatar_br(res_atual['GDAC'])}")
+        st.write(f"Auxílio Alimentação: R$ {formatar_br(res_atual['Alim'])}")
+        if valor_funcao > 0: st.write(f"Função: R$ {formatar_br(valor_funcao)}")
+        if tem_pre_escolar: st.write(f"Pré-Escolar: R$ 321,00")
+        st.markdown(f"**Total Mensal Bruto: R$ {formatar_br(res_atual['Mensal_Bruto'])}**")
+
     with c2:
-        st.write(f"**Alíquota IRPF:** {aliq}%")
-        if ano_base == "2026":
-            st.write(f"**Redução Lei 15.270:** R$ {formatar_br(reducao)}")
+        st.warning("**Detalhamento IRPF**")
+        st.write(f"Alíquota Aplicada: {res_atual['Aliq']}%")
+        if ano_base == 2026:
+            st.success(f"Redução Lei 15.270: R$ {formatar_br(res_atual['Reducao'])}")
+        else:
+            st.write("Redução 2026: R$ 0,00 (Ano base 2025)")
+        st.markdown(f"**Retenção Final de IR: R$ {formatar_br(res_atual['IR_Final'])}**")
 
-except Exception as e:
-    st.info("Aguardando seleção de dados na barra lateral.")
+with tab2:
+    st.markdown("### Comparativo de Rendimentos (Base PL nº 5.874/2025)")
+    comp_df = pd.DataFrame({
+        "Rubrica": ["Vencimento Básico", "GDAC", "Auxílio Alimentação", "Valor Mensal Bruto", "IRPF Final", "Valor Mensal Líquido"],
+        "Jan/2025 (R$)": [formatar_br(res_25['VB']), formatar_br(res_25['GDAC']), formatar_br(res_25['Alim']), formatar_br(res_25['Mensal_Bruto']), formatar_br(res_25['IR_Final']), formatar_br(res_25['Mensal_Liquido'])],
+        "Abr/2026 (R$)": [formatar_br(res_26['VB']), formatar_br(res_26['GDAC']), formatar_br(res_26['Alim']), formatar_br(res_26['Mensal_Bruto']), formatar_br(res_26['IR_Final']), formatar_br(res_26['Mensal_Liquido'])]
+    })
+    st.table(comp_df)
 
-# Rodapé
+# --- RODAPÉ ---
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #666; font-size: 0.85em;'>Elaboração: GT de Elaboração de Emendas e Comando de Acompanhamento da Negociação</div>", unsafe_allow_html=True)
+st.markdown(
+    "<div style='text-align: center; color: #666; font-size: 0.85em;'>"
+    "Elaboração: GT de Elaboração de Emendas e Comando de Acompanhamento da Negociação"
+    "</div>", 
+    unsafe_allow_html=True
+)
