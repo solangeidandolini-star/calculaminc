@@ -15,4 +15,4 @@ Portaria MGI nº 9.888, de 6 de Novembro de 2025 - Fixa o valor mensal do auxíl
 
 Lei nº 15.270 de 26 de novembro de 2025 - Zera o imposto de renda até R$ 5.000,00 (https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2025/lei/l15270.htm)
 
-Projeto de Lei nº 5.874 de 2025 (https://legis.senado.leg.br/sdleg-getter/documento?dm=10155651&disposition=inline)
+Projeto de Lei nº 5.874 de 2025 (https://www25.senado.leg.br/web/atividade/materias/-/materia/172946)
