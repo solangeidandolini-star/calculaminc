@@ -71,7 +71,7 @@ if df_total is not None:
     pre_input = 0.0
     if vinculo == "Ativo":
         pontos = st.sidebar.select_slider("Pontos GDAC", [80, 100], 100)
-        if st.sidebar.checkbox("Auxílio Pré-Escolar (+321,00)"): pre_input = 321.0
+        if st.sidebar.checkbox("Auxílio Pré-Escolar (+484,90)"): pre_input = 484.90
     else:
         pontos = 50
 
