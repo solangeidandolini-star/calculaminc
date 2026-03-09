@@ -73,7 +73,7 @@ df_pl = carregar_dados_pl()
 
 # --- INTERFACE ---
 
-st.title("⚖️ Calculadora Salarial MINC/IPHAN")
+st.title("🔍 Calculadora Salarial MINC/IPHAN")
 st.subheader("Simulador: PL nº 5.874/2025 & Lei nº 15.270/2025")
 
 if df_pl is None:
