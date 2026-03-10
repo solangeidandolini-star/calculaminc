@@ -139,8 +139,8 @@ if df_total is not None:
     # --- 6. INTERFACE (O TÍTULO DEVE FICAR AQUI) ---
     st.title("🏛️ Simulador Salarial MINC/IPHAN")
 
-    # Somente após o título nós criamos as abas    tab1, tab2, tab3 = st.tabs(["🎯 Calculadora Individual", "⚖️ Comparativo Cronológico", "📜 Legislação Aplicada"])
-
+    # Somente após o título nós criamos as abas
+    tab1, tab2, tab3 = st.tabs(["🎯 Calculadora Individual", "⚖️ Comparativo Cronológico", "📜 Legislação Aplicada"])
     with tab1:
         res = {"Tabela Vigente 01/01/2025": res_25, "Tabela Vigente 01/04/2026": res_26, "Proposta PL 01/04/2026": res_pl}[cenario_foco]
         if res:
