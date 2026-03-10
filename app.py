@@ -138,11 +138,11 @@ if df_total is not None:
             base_pss = vb + gdac + func_input
             pss_v = calcular_pss(base_pss, vinculo)
             
-            # Dedução por dependentes (IRPF)
+            # Dedução por dependentes
             deducao_dependentes = num_dependentes_ir * 189.59
 
-            # Base IRPF (sem auxílios)
-            base_irpf = max(0, vb + gdac + func_input - deducao_dependentes)
+            # Base tributável do IR
+            base_irpf = max(0, (vb + gdac + func_input) - pss_v - deducao_dependentes)
 
             ir_v, aliq_v, red_v = calcular_irpf(base_irpf, nome_cenario)
             
