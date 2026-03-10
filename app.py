@@ -102,12 +102,27 @@ if df_total is not None:
     func_input = st.sidebar.number_input("Função Comissionada (R$)", min_value=0.0, step=0.01, format="%.2f")
     saude_input = st.sidebar.number_input("Ressarcimento Saúde (R$)", min_value=0.0, step=0.01, format="%.2f")
 
-    num_filhos = 0
+    num_dependentes_ir = st.sidebar.number_input(
+    "Dependentes para IRPF",
+    min_value=0,
+    max_value=10,
+    value=0
+    )
+
+    num_filhos_pre = 0
     pre_input = 0.0
+
     if vinculo == "Ativo":
         pontos = st.sidebar.select_slider("Pontos GDAC", [80, 100], 100)
-        num_filhos = st.sidebar.number_input("Número de dependentes (Auxílio Pré-escolar)", min_value=0, max_value=5, value=0)
-        pre_input = num_filhos * 484.90
+
+        num_filhos_pre = st.sidebar.number_input(
+            "Filhos para Auxílio Pré-Escolar",
+            min_value=0,
+            max_value=5,
+            value=0
+        )
+
+        pre_input = num_filhos_pre * 484.90
     else:
         pontos = 50
 
@@ -123,8 +138,12 @@ if df_total is not None:
             base_pss = vb + gdac + func_input
             pss_v = calcular_pss(base_pss, vinculo)
             
-            # Base IRPF: VB + GDAC + FUNÇÃO + SAÚDE (Exclui Alimento e Pré-escolar)
-            base_irpf = vb + gdac + func_input + saude_input
+            # Dedução por dependentes (IRPF)
+            deducao_dependentes = num_dependentes_ir * 189.59
+
+            # Base IRPF (sem auxílios)
+            base_irpf = max(0, vb + gdac + func_input - deducao_dependentes)
+
             ir_v, aliq_v, red_v = calcular_irpf(base_irpf, nome_cenario)
             
             bruto_v = vb + gdac + alim + func_input + pre_input + saude_input
@@ -163,7 +182,7 @@ if df_total is not None:
                 st.write(f"GDAC ({pontos} pts): **R$ {formatar_br(res['GDAC'])}**")
                 if res['ALIM'] > 0: st.write(f"Auxílio Alimentação: **R$ {formatar_br(res['ALIM'])}**")
                 if res['FUNC'] > 0: st.write(f"Função Comissionada: **R$ {formatar_br(res['FUNC'])}**")
-                if res['PRE'] > 0: st.success(f"Auxílio Pré-Escolar ({num_filhos} dep.): **R$ {formatar_br(res['PRE'])}**")
+                if res['PRE'] > 0: st.success(f"Auxílio Pré-Escolar ({num_filhos_pre} dep.): **R$ {formatar_br(res['PRE'])}**")
                 if res['SAUDE'] > 0: st.write(f"Ressarcimento Saúde: **R$ {formatar_br(res['SAUDE'])}**")
             with col_b:
                 st.write("**Deduções (Impostos e Previdência):**")
