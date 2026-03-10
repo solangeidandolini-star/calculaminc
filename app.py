@@ -163,7 +163,7 @@ if df_total is not None:
     st.title("🏛️ Simulador Salarial MINC")
 
     # Certifique-se de que a linha abaixo NÃO comece com #
-    tab1, tab2, tab3 = st.tabs(["🎯 Calculadora Individual", "⚖️ Comparativo Cronológico", "📜 Legislação Aplicada"])
+    tab1, tab2, tab3 = st.tabs(["🎯 Calculadora Individual", "⚖️ Comparativo Cronológico", "📜 Normativo Legal"])
     
     with tab1:
         res = {"Tabela Vigente 01/01/2025": res_25, "Tabela Vigente 01/04/2026": res_26, "Proposta PL 01/04/2026": res_pl}[cenario_foco]
